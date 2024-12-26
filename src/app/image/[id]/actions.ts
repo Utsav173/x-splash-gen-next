@@ -1,12 +1,12 @@
-'use server';
+"use server";
 
-import { validatedAction } from '@/lib/auth/middleware';
-import { db } from '@/lib/db/drizzle';
-import { getUser } from '@/lib/db/queries';
-import { comments } from '@/lib/db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
+import { validatedAction } from "@/lib/auth/middleware";
+import { db } from "@/lib/db/drizzle";
+import { getUser } from "@/lib/db/queries";
+import { collectionImages, collections, comments } from "@/lib/db/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 const AddCommentSchema = z.object({
   imageId: z.string().transform((val) => parseInt(val)),
@@ -28,37 +28,32 @@ export const addComment = validatedAction(
   async (data, formData) => {
     const user = await getUser();
     if (!user?.id) {
-      return { error: 'You must be logged in to comment' };
+      return { error: "You must be logged in to comment" };
     }
 
     const content = data.content;
     const imageId = data.imageId;
-    const replyToId = formData.get('replyToId')
-      ? parseInt(formData.get('replyToId') as string)
+    const replyToId = formData.get("replyToId")
+      ? parseInt(formData.get("replyToId") as string)
       : null;
 
     if (!content?.trim()) {
-      return { error: 'Comment content is required' };
+      return { error: "Comment content is required" };
     }
 
     try {
-      await db
-        .insert(comments)
-        .values({
-          content,
-          imageId,
-          replyToId,
-          userId: user.id,
-        })
-        .then((result) => {
-          console.log('Comment added:', result);
-        });
+      await db.insert(comments).values({
+        content,
+        imageId,
+        replyToId,
+        userId: user.id,
+      });
 
-      revalidatePath('/images/[id]', 'page');
-      return { message: 'Comment added successfully' };
+      revalidatePath("/images/[id]", "page");
+      return { message: "Comment added successfully" };
     } catch (error) {
-      console.error('Error adding comment:', error);
-      return { error: 'Failed to add comment' };
+      console.error("Error adding comment:", error);
+      return { error: "Failed to add comment" };
     }
   }
 );
@@ -68,14 +63,14 @@ export const updateComment = validatedAction(
   async (data) => {
     const user = await getUser();
     if (!user?.id) {
-      return { error: 'You must be logged in to edit comments' };
+      return { error: "You must be logged in to edit comments" };
     }
 
     const commentId = data.commentId;
     const content = data.content;
 
     if (!content?.trim()) {
-      return { error: 'Comment content is required' };
+      return { error: "Comment content is required" };
     }
 
     try {
@@ -86,7 +81,7 @@ export const updateComment = validatedAction(
 
       if (!existingComment) {
         return {
-          error: 'Comment not found or you do not have permission to edit it',
+          error: "Comment not found or you do not have permission to edit it",
         };
       }
 
@@ -99,11 +94,11 @@ export const updateComment = validatedAction(
         })
         .where(and(eq(comments.id, commentId), eq(comments.userId, user.id)));
 
-      revalidatePath('/images/[id]', 'page');
-      return { message: 'Comment updated successfully' };
+      revalidatePath("/images/[id]", "page");
+      return { message: "Comment updated successfully" };
     } catch (error) {
-      console.error('Error updating comment:', error);
-      return { error: 'Failed to update comment' };
+      console.error("Error updating comment:", error);
+      return { error: "Failed to update comment" };
     }
   }
 );
@@ -113,12 +108,10 @@ export const deleteComment = validatedAction(
   async (data) => {
     const user = await getUser();
     if (!user?.id) {
-      return { error: 'You must be logged in to delete comments' };
+      return { error: "You must be logged in to delete comments" };
     }
 
     const commentId = data.commentId;
-
-    console.log('Deleting comment:', commentId);
 
     try {
       // First, verify the comment belongs to the user
@@ -128,7 +121,7 @@ export const deleteComment = validatedAction(
 
       if (!existingComment) {
         return {
-          error: 'Comment not found or you do not have permission to delete it',
+          error: "Comment not found or you do not have permission to delete it",
         };
       }
 
@@ -145,11 +138,84 @@ export const deleteComment = validatedAction(
         );
       });
 
-      revalidatePath('/images/[id]', 'page');
-      return { message: 'Comment and its replies deleted successfully' };
+      revalidatePath("/images/[id]", "page");
+      return { message: "Comment and its replies deleted successfully" };
     } catch (error) {
-      console.error('Error deleting comment:', error);
-      return { error: 'Failed to delete comment' };
+      console.error("Error deleting comment:", error);
+      return { error: "Failed to delete comment" };
+    }
+  }
+);
+
+const AddToCollectionSchema = z.object({
+  imageId: z.string().transform((val) => parseInt(val)),
+  collectionId: z.string().transform((val) => parseInt(val)),
+});
+
+export const addImageToCollection = validatedAction(
+  AddToCollectionSchema,
+  async (data) => {
+    const user = await getUser();
+    if (!user?.id) throw new Error("Not authenticated");
+
+    // Check if image already exists in collection
+    const existing = await db
+      .select()
+      .from(collectionImages)
+      .where(
+        and(
+          eq(collectionImages.imageId, data.imageId),
+          eq(collectionImages.collectionId, data.collectionId)
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      return { error: "Image already exists in this collection" };
+    }
+
+    try {
+      await db.insert(collectionImages).values({
+        imageId: data.imageId,
+        collectionId: data.collectionId,
+      });
+
+      revalidatePath(`/collections/${data.collectionId}`);
+      revalidatePath(`/images/${data.imageId}`);
+      return { message: "Image added to collection" };
+    } catch (error) {
+      return { error: "Failed to add image to collection" };
+    }
+  }
+);
+
+const CollectionAddSchema = z.object({
+  title: z.string().min(1).max(255),
+});
+
+export const createCollection = validatedAction(
+  CollectionAddSchema,
+  async (data, formData) => {
+    const user = await getUser();
+    if (!user?.id) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      await db
+        .insert(collections)
+        .values({
+          title: data.title,
+          userId: user.id,
+        })
+        .returning();
+
+      revalidatePath("/collections");
+      revalidatePath("/image/[id]", "page");
+
+      return { message: "Collection created successfully" };
+    } catch (error) {
+      return { error: "Failed to create collection" };
     }
   }
 );

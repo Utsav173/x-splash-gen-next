@@ -120,8 +120,8 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => {
-                signOut();
+              onClick={async() => {
+                await signOut();
                 router.push('/');
               }}
             >

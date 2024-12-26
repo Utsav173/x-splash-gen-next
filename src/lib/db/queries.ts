@@ -1,6 +1,7 @@
-import { asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
-import { db } from './drizzle';
+import { and, asc, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
+import { db } from "./drizzle";
 import {
+  collectionImages,
   collections,
   comments,
   Image,
@@ -9,13 +10,13 @@ import {
   likes,
   tags,
   users,
-} from './schema';
-import { cookies } from 'next/headers';
-import { verifyToken } from '../auth/session';
-import { RowList } from 'postgres';
+} from "./schema";
+import { cookies } from "next/headers";
+import { verifyToken } from "../auth/session";
+import { RowList } from "postgres";
 
 export async function getUser() {
-  const sessionCookie = (await cookies()).get('session');
+  const sessionCookie = (await cookies()).get("session");
   if (!sessionCookie || !sessionCookie.value) {
     return null;
   }
@@ -24,7 +25,7 @@ export async function getUser() {
   if (
     !sessionData ||
     !sessionData.user ||
-    typeof sessionData.user.id !== 'number'
+    typeof sessionData.user.id !== "number"
   ) {
     return null;
   }
@@ -101,12 +102,11 @@ export async function getAllImages(
             COALESCE(json_agg(
             json_build_object( 'userId', ${likes.userId} )
            ) FILTER (WHERE ${likes.userId} IS NOT NULL ),'[]')
-
-      `.as('likes'),
+          `.as("likes"),
         tags: sql<string[]>`
           array_agg(distinct ${tags.name})
           filter (where ${tags.name} is not null)
-        `.as('tags'),
+        `.as("tags"),
       })
       .from(images)
       .leftJoin(users, eq(images.uploadedById, users.id))
@@ -130,8 +130,8 @@ export async function getAllImages(
       whereConditions = or(
         ilike(images.title, `%${q}%`),
         ilike(images.description, `%${q}%`),
-        ilike(users.name, `%${q}%`),
-        ilike(tags.name, `%${q}%`)
+        and(isNotNull(users.email), ilike(users.email, `%${q}%`)),
+        and(isNotNull(tags.name), ilike(tags.name, `%${q}%`))
       );
       baseQuery.where(whereConditions);
     }
@@ -171,22 +171,21 @@ export async function getAllImages(
       totalPages,
       totalRecords,
       perPage: limit,
-      error: '',
+      error: "",
     };
   } catch (error) {
-    console.error('Error in getAllImages:', error);
+    console.error("Error in getAllImages:", error);
     return {
       images: [],
       page: 1,
       totalPages: 1,
       totalRecords: 0,
       perPage: 10,
-      error: 'Internal server error',
+      error: "Internal server error",
       status: 500,
     };
   }
 }
-
 export type ImageDetail = {
   id: number;
   title: string;
@@ -219,7 +218,7 @@ export type ImageDetail = {
 export async function getSingleImage(id: number): Promise<ImageDetail | any> {
   try {
     if (!id) {
-      return { error: 'Image ID is required', status: 400 };
+      return { error: "Image ID is required", status: 400 };
     }
 
     const imageData = await db
@@ -233,7 +232,7 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
         createdAt: images.createdAt,
         updatedAt: images.updatedAt,
         uploadedBy: users,
-        likes: sql<number>`count(distinct ${likes.id})`.as('likes_count'),
+        likes: sql<number>`count(distinct ${likes.id})`.as("likes_count"),
         likedBy: sql<(typeof users.$inferSelect)[]>`
           array_agg(distinct jsonb_build_object(
             'id', ${likes.userId},
@@ -241,14 +240,14 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
             'email', ${users.email}
           ))
           filter (where ${likes.userId} is not null)
-        `.as('liked_by'),
+        `.as("liked_by"),
         tags: sql<(typeof tags.$inferSelect)[]>`
           array_agg(distinct jsonb_build_object(
             'id', ${tags.id},
             'name', ${tags.name}
           ))
           filter (where ${tags.id} is not null)
-        `.as('tags'),
+        `.as("tags"),
       })
       .from(images)
       .leftJoin(users, eq(images.uploadedById, users.id))
@@ -259,7 +258,7 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
       .groupBy(images.id, users.id);
 
     if (!imageData || imageData.length === 0) {
-      return { error: 'Image not found', status: 404 };
+      return { error: "Image not found", status: 404 };
     }
 
     // If you need to fetch image URL from external service
@@ -278,8 +277,8 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
       imageUrl: finalImageUrl,
     };
   } catch (error) {
-    console.error('Error in getSingleImage:', error);
-    return { error: 'Internal server error', status: 500 };
+    console.error("Error in getSingleImage:", error);
+    return { error: "Internal server error", status: 500 };
   }
 }
 
@@ -307,8 +306,8 @@ export async function getAllTags(): Promise<
     const tagsData = await db.select().from(tags).orderBy(tags.name);
     return tagsData;
   } catch (error) {
-    console.error('Error in getAllTags:', error);
-    return { error: 'Internal server error', status: 500 };
+    console.error("Error in getAllTags:", error);
+    return { error: "Internal server error", status: 500 };
   }
 }
 
@@ -357,7 +356,7 @@ export async function getAllCommentsForImage(
 
     return { comments: rootComments };
   } catch (error) {
-    console.error('Error fetching comments for image:', error);
+    console.error("Error fetching comments for image:", error);
     return { comments: [] };
   }
 }
@@ -385,37 +384,42 @@ export type CollectionProps = typeof collections.$inferSelect & {
   }>;
 };
 
-export async function getCollectionWithImages(
-  collectionId: number
-): Promise<CollectionProps | null> {
+export async function getCollectionWithImages(collectionId: number) {
   const user = await getUser();
   if (!user?.id) {
     return null;
   }
 
-  const collection = await db.query.collections.findFirst({
-    where: eq(collections.id, collectionId),
-    with: {
-      images: {
-        with: {
-          image: true,
-        },
-      },
-    },
-  });
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [collection] = await tx
+        .select()
+        .from(collections)
+        .where(eq(collections.id, collectionId))
+        .limit(1);
 
-  if (!collection || collection.userId !== user.id) {
+      if (!collection || collection.userId !== user.id) return null;
+
+      const imagesData = await tx
+        .select({
+          id: images.id,
+          title: images.title,
+          imageUrl: images.imageUrl,
+          thumbnailUrl: images.thumbnailUrl,
+        })
+        .from(collectionImages)
+        .innerJoin(images, eq(collectionImages.imageId, images.id))
+        .where(eq(collectionImages.collectionId, collectionId));
+
+      return {
+        ...collection,
+        images: imagesData,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Error in getCollectionWithImages:", error);
     return null;
   }
-
-  // Transform the data to match the expected format
-  return {
-    ...collection,
-    images: collection.images.map((ci: { image: any }) => ({
-      id: ci.image.id,
-      title: ci.image.title,
-      imageUrl: ci.image.imageUrl,
-      thumbnailUrl: ci.image.thumbnailUrl,
-    })),
-  };
 }
