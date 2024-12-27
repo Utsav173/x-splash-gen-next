@@ -1,47 +1,42 @@
 'use server';
-import { Client, GatewayIntentBits, Message, TextChannel } from 'discord.js';
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v10';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import { images, imageTags, tags as Tags } from '@/lib/db/schema';
 import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { validatedAction } from '@/lib/auth/middleware';
 
-// Initialize the Discord client globally
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHANNEL_ID = process.env.CHANNEL_ID;
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent],
-});
+const BOT_TOKEN = process.env.BOT_TOKEN!;
+const CHANNEL_ID = process.env.CHANNEL_ID!;
 
-client.login(BOT_TOKEN);
+const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
 
 const uploadToDiscord = async (
   channelId: string,
   chunk: Buffer,
   fileName: string
 ) => {
-  const channel = (await client.channels.fetch(channelId)) as TextChannel;
-  if (!channel || !channel.isTextBased()) {
-    return { success: false, errorMessage: 'Invalid channel type' };
-  }
   try {
-    const sentMessage: Message = await channel.send({
+    const message = (await rest.post(Routes.channelMessages(channelId), {
       files: [
         {
-          attachment: chunk,
+          data: chunk,
           name: fileName,
         },
       ],
-      content: fileName,
-    });
+      body: {
+        content: fileName,
+      },
+    })) as { attachments: { url: string }[]; id: string };
 
     return {
-      url: sentMessage.attachments.first()?.url,
+      url: message.attachments[0]?.url,
       success: true,
-      id: sentMessage.id,
+      id: message.id,
     };
   } catch (error) {
     console.error('Error uploading to Discord:', error);

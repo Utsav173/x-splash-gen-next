@@ -1,14 +1,5 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-  webpack: (config, options) => {
-    config.module.rules.push({
-      test: /\.node/,
-      use: 'node-loader',
-    });
-
-    return config;
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
