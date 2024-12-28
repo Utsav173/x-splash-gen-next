@@ -22,6 +22,7 @@ const NoCollectionsFound = () => (
 const CollectionCard = ({ collection }: { collection: any }) => (
   <Link
     href={`/collections/${collection.id}`}
+    prefetch={true}
     className="group outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-lg"
   >
     <Card className="h-full border-none bg-white shadow-sm hover:shadow-md transition-shadow duration-200">

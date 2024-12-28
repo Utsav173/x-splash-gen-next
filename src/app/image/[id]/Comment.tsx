@@ -77,7 +77,7 @@ const CommentBox = ({ comment, imageId, user }: CommentProps) => {
   const handleShare = () => {
     const commentUrl = `${window.location.href}#comment-${comment.id}`;
     navigator.clipboard.writeText(commentUrl);
-    toast({ content: 'Comment link copied to clipboard' });
+    toast({ description: 'Comment link copied to clipboard' });
   };
 
   return (

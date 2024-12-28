@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import React, { useCallback, useRef, useEffect } from 'react';
-import { saveAs } from 'file-saver';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Download, Heart, Share2, ZoomIn } from 'lucide-react';
-import { ImageWithRelations } from '@/lib/db/queries';
-import { handleLikePost } from '@/app/actions';
-import { useRouter } from 'next/navigation';
+import { useCallback, useRef, useEffect, useState } from "react";
+import { saveAs } from "file-saver";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Download, Heart, Share2, ZoomIn } from "lucide-react";
+import { ImageWithRelations } from "@/lib/db/queries";
+import { handleLikePost } from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 interface Props {
   images: ImageWithRelations[];
@@ -25,9 +25,8 @@ export default function ImageList({
 }: Props) {
   const { toast } = useToast();
   const router = useRouter();
-  const [images, setImages] =
-    React.useState<ImageWithRelations[]>(initialImages);
-  const [loading, setLoading] = React.useState(false);
+  const [images, setImages] = useState(initialImages);
+  const [loading, setLoading] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement>(null);
 
@@ -36,23 +35,27 @@ export default function ImageList({
 
     setLoading(true);
     try {
-      const nextPage = Math.ceil(images.length / limit) + 1;
+      const currentPage = Math.floor((images.length - 1) / limit) + 1;
+      const nextPage = currentPage + 1;
       const searchParams = new URLSearchParams();
-      searchParams.set('page', nextPage.toString());
-      searchParams.set('limit', limit.toString());
-      if (q) searchParams.set('q', q);
+      searchParams.set("page", nextPage.toString());
+      searchParams.set("limit", limit.toString());
+      if (q) searchParams.set("q", q);
 
+      // Only navigate if hasMore is true
       router.push(`${window.location.pathname}?${searchParams.toString()}`, {
         scroll: false,
       });
     } catch (error) {
-      toast({ description: 'Failed to load more images' });
+      toast({ description: "Failed to load more images" });
     } finally {
       setLoading(false);
     }
-  }, [images.length, limit, loading, hasMore, q, toast]);
+  }, [images.length, limit, loading, hasMore, q, router, toast]);
 
   useEffect(() => {
+    if (!hasMore || images.length === 0) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loading) {
@@ -73,17 +76,17 @@ export default function ImageList({
         observerRef.current.disconnect();
       }
     };
-  }, [hasMore, loading, loadMoreImages]);
+  }, [hasMore, loading, loadMoreImages, images.length]);
 
   const handleLike = async (imageId: number) => {
     try {
       const response = await handleLikePost(imageId);
 
       const result = response as {
-        message: 'liked' | 'disliked' | 'Unauthorized';
+        message: "liked" | "disliked" | "Unauthorized";
       };
 
-      if (result.message === 'liked') {
+      if (result.message === "liked") {
         setImages((currentImages) =>
           currentImages.map((img) =>
             img.id === imageId
@@ -94,20 +97,20 @@ export default function ImageList({
               : img
           )
         );
-        toast({ description: 'Added to your favorites ❤️' });
-      } else if (result.message === 'disliked') {
+        toast({ description: "Added to your favorites ❤️" });
+      } else if (result.message === "disliked") {
         setImages((currentImages) =>
           currentImages.map((img) => ({
             ...img,
             likes: (img.likes || []).filter((like) => like.userId !== -1),
           }))
         );
-        toast({ description: 'Removed from favorites' });
-      } else if (result.message === 'Unauthorized') {
-        toast({ description: 'Sign in to like images' });
+        toast({ description: "Removed from favorites" });
+      } else if (result.message === "Unauthorized") {
+        toast({ description: "Sign in to like images" });
       }
     } catch {
-      toast({ description: 'Something went wrong. Please try again.' });
+      toast({ description: "Something went wrong. Please try again." });
     }
   };
 
@@ -135,7 +138,7 @@ export default function ImageList({
           <div className="relative group">
             <img
               src={image.thumbnailUrl || image.imageUrl}
-              alt={image.title || 'Image preview'}
+              alt={image.title || "Image preview"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               loading="lazy"
             />
@@ -146,7 +149,7 @@ export default function ImageList({
                 {image.title}
               </p>
               <p className="text-white text-sm opacity-80 mt-1">
-                by {image.uploadedBy?.email.split('@')[0]}
+                by {image.uploadedBy?.email.split("@")[0]}
               </p>
               <div className="flex space-x-2 mt-4">
                 <Button
@@ -164,8 +167,8 @@ export default function ImageList({
                     size={18}
                     className={
                       image.likes?.some((like) => like.userId)
-                        ? 'fill-red-500 text-red-500'
-                        : ''
+                        ? "fill-red-500 text-red-500"
+                        : ""
                     }
                   />
                 </Button>
@@ -189,6 +192,7 @@ export default function ImageList({
                 </Button>
                 <Link
                   href={`/image/${image.id}`}
+                  prefetch={true}
                   aria-label={`View details of image titled ${image.title}`}
                 >
                   <Button

@@ -25,7 +25,7 @@ export default function SearchBar({ initialQuery = '' }) {
   return (
     <div className="flex gap-2 relative">
       <Input
-        className="max-w-xs rounded-3xl"
+        className="max-w-xs rounded-3xl border border-sidebar-border"
         placeholder="Search images..."
         value={query}
         onChange={(e) => {
