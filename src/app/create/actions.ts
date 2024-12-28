@@ -1,19 +1,19 @@
-'use server';
-import { REST } from '@discordjs/rest';
-import { Routes } from 'discord-api-types/v10';
-import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import sharp from 'sharp';
-import { images, imageTags, tags as Tags } from '@/lib/db/schema';
-import { db } from '@/lib/db/drizzle';
-import { getUser } from '@/lib/db/queries';
-import { validatedAction } from '@/lib/auth/middleware';
+"use server";
+import { REST } from "@discordjs/rest";
+import { Routes } from "discord-api-types/v10";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { eq } from "drizzle-orm";
+import sharp from "sharp";
+import { images, imageTags, tags as Tags } from "@/lib/db/schema";
+import { db } from "@/lib/db/drizzle";
+import { getUser } from "@/lib/db/queries";
+import { validatedAction } from "@/lib/auth/middleware";
 
 const BOT_TOKEN = process.env.BOT_TOKEN!;
 const CHANNEL_ID = process.env.CHANNEL_ID!;
 
-const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
+const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
 
 const uploadToDiscord = async (
   channelId: string,
@@ -22,12 +22,7 @@ const uploadToDiscord = async (
 ) => {
   try {
     const message = (await rest.post(Routes.channelMessages(channelId), {
-      files: [
-        {
-          data: chunk,
-          name: fileName,
-        },
-      ],
+      files: [{ data: chunk, name: fileName }],
       body: {
         content: fileName,
       },
@@ -39,8 +34,8 @@ const uploadToDiscord = async (
       id: message.id,
     };
   } catch (error) {
-    console.error('Error uploading to Discord:', error);
-    return { success: false, errorMessage: (error as Error).message };
+    console.error("Error uploading to Discord:", error);
+    throw error;
   }
 };
 
@@ -61,13 +56,13 @@ export const uploadImages = validatedAction(
     };
 
     if (!currentUser) {
-      return { success: false, message: 'Unauthorized', defaultValues };
+      return { success: false, message: "Unauthorized", defaultValues };
     }
 
     const { title, description, tags, image } = data;
 
-    if (image.size > 13 * 1024 * 1024) {
-      return { success: false, message: 'File size too large', defaultValues };
+    if (image.size > 7 * 1024 * 1024) {
+      return { success: false, message: "File size too large (>7MB)", defaultValues };
     }
 
     try {
@@ -80,14 +75,14 @@ export const uploadImages = validatedAction(
       if (!uploadResult.success) {
         return {
           success: false,
-          message: 'Failed to upload image to Discord',
+          message: "Failed to upload image to Discord",
           defaultValues,
         };
       }
 
-      let thumbnailUrl: string | null | undefined = '';
+      let thumbnailUrl: string | null | undefined = "";
 
-      if (image.type.startsWith('image')) {
+      if (image.type.startsWith("image")) {
         const compressedBuffer = await sharp(
           Buffer.from(await image.arrayBuffer())
         )
@@ -121,7 +116,7 @@ export const uploadImages = validatedAction(
           .returning({ id: images.id });
 
         if (!newImage[0]?.id) {
-          throw new Error('Failed to insert image');
+          throw new Error("Failed to insert image");
         }
 
         const imageId = newImage[0].id;
@@ -149,7 +144,7 @@ export const uploadImages = validatedAction(
                 .returning({ id: Tags.id });
 
               if (!newTag[0]?.id) {
-                throw new Error('Failed to insert tag');
+                throw new Error("Failed to insert tag");
               }
 
               tagId = newTag[0].id;
@@ -166,19 +161,19 @@ export const uploadImages = validatedAction(
         return newImage[0].id;
       });
 
-      revalidatePath('/');
+      revalidatePath("/");
 
       return {
         success: true,
-        message: 'Image uploaded successfully',
+        message: "Image uploaded successfully",
         defaultValues,
       };
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
       return {
         success: false,
         message:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+          error instanceof Error ? error.message : "Unknown error occurred",
         defaultValues,
       };
     }

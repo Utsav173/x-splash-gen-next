@@ -4,7 +4,7 @@ import { Routes } from "discord-api-types/v10";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/drizzle";
-import { images, likes, User, users, type NewUser } from "@/lib/db/schema";
+import { images, likes, users, type NewUser } from "@/lib/db/schema";
 import { comparePasswords, hashPassword, setSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";

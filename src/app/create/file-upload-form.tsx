@@ -50,15 +50,17 @@ const ImageUploadForm = ({ tags = [] }: { tags?: Tag[] }) => {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  const inputRef = useState<HTMLInputElement | null>(null);
-
   useEffect(() => {
     if (state.success) {
       setPreview("");
       setSelectedTags([]);
       router.push("/");
+    } else {
+      setPreview("");
+      setSelectedTags([]);
     }
   }, [state.success]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
@@ -245,14 +247,8 @@ const ImageUploadForm = ({ tags = [] }: { tags?: Tag[] }) => {
           </div>
 
           {state.message && (
-            <Alert className="bg-green-50">
+            <Alert className={`bg-${state.success ? "green" : "red"}-50`}>
               <AlertDescription> {state.message}</AlertDescription>
-            </Alert>
-          )}
-
-          {state.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
 
