@@ -1,6 +1,6 @@
 'use client';
 
-import { handleLikePost } from "@/app/(login)/actions";
+import { handleLikePost } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { Button } from "./ui/button";

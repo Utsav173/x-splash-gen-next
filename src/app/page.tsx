@@ -1,10 +1,11 @@
-import React, { Suspense } from 'react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { getAllImages } from '@/lib/db/queries';
-import ImageList from '@/components/image-list';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import SearchBar from '@/components/search-bar';
+import React, { Suspense } from "react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { getAllImages } from "@/lib/db/queries";
+import ImageList from "@/components/image-list";
+import SearchBar from "@/components/search-bar";
+import { PageHeader } from "@/components/ui/page-header";
+import FixButton from "@/components/fix-button";
 
 export default async function Home({
   searchParams,
@@ -27,21 +28,25 @@ export default async function Home({
 
   const hasMore = images.length >= limit;
 
+  const NoImagesFound = () => (
+    <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+      <div className="text-6xl mb-4">🎨</div>
+      <h3 className="text-xl font-semibold mb-2">No Masterpieces Found</h3>
+      <p className="text-gray-400 mb-6">
+        {q ? `No images found for "${q}"` : "Time to create something amazing!"}
+      </p>
+      <Button asChild className="bg-black hover:bg-gray-800 text-white">
+        <Link href="/create">Create Your First Masterpiece</Link>
+      </Button>
+    </div>
+  );
+
   return (
     <main className="min-h-screen w-full flex flex-col bg-gray-50">
-      <header className="sticky top-0 z-50 backdrop-blur-lg bg-white/75 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="-ml-1" />
-              <SearchBar initialQuery={q} />
-            </div>
-            <Button asChild className="bg-black hover:bg-gray-800 text-white">
-              <Link href="/create">Upload Masterpiece</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        leftContent={<SearchBar initialQuery={q} />}
+        rightContent={<FixButton />}
+      />
 
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <Suspense
@@ -56,7 +61,11 @@ export default async function Home({
             </div>
           }
         >
-          <ImageList images={images} q={q} limit={limit} hasMore={hasMore} />
+          {images.length > 0 ? (
+            <ImageList images={images} q={q} limit={limit} hasMore={hasMore} />
+          ) : (
+            <NoImagesFound />
+          )}
         </Suspense>
       </div>
     </main>

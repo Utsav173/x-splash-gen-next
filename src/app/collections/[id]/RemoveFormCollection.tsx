@@ -4,6 +4,8 @@ import { useActionState, useEffect } from "react"; // Assuming this is available
 import { useToast } from "@/hooks/use-toast";
 import { removeFromCollection } from "./actions";
 import { ActionState } from "@/lib/auth/middleware";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Trash } from "lucide-react";
 
 const RemoveFromCollectionForm = ({
   collectionId,
@@ -39,13 +41,15 @@ const RemoveFromCollectionForm = ({
         readOnly
       />
       <input type="hidden" name="imageId" defaultValue={imageId} readOnly />
-      <button
-        type="submit"
-        className="text-red-500 hover:underline"
+      <DropdownMenuItem
+        className="text-red-600"
         disabled={pending}
+        role="button"
+        itemType="submit"
       >
-        Remove
-      </button>
+        <Trash className="h-4 w-4 mr-2" />
+        Remove from Collection
+      </DropdownMenuItem>
     </form>
   );
 };

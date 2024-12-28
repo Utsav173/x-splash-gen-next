@@ -1,3 +1,4 @@
+import { Routes } from "discord-api-types/v10";
 import { and, asc, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "./drizzle";
 import {
@@ -13,7 +14,7 @@ import {
 } from "./schema";
 import { cookies } from "next/headers";
 import { verifyToken } from "../auth/session";
-import { RowList } from "postgres";
+import { REST } from "@discordjs/rest";
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get("session");
@@ -263,14 +264,13 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
 
     // If you need to fetch image URL from external service
     let finalImageUrl = imageData[0].imageUrl;
-    // if (imageData[0].publicId) {
-    //   try {
-    //     finalImageUrl = await getImageById(imageData[0].publicId);
-    //   } catch (error) {
-    //     console.error('Error fetching image URL:', error);
-    //     // Fall back to stored URL if external fetch fails
-    //   }
-    // }
+    if (imageData[0].publicId) {
+      try {
+        finalImageUrl = await getImageById(imageData[0].publicId);
+      } catch (error) {
+        console.error("Error fetching image URL:", error);
+      }
+    }
 
     return {
       ...imageData[0],
@@ -282,22 +282,37 @@ export async function getSingleImage(id: number): Promise<ImageDetail | any> {
   }
 }
 
-// Helper function to get image URL from external service
-// async function getImageById(publicId: string): Promise<string> {
-//   // Implement your external service image fetching logic here
-//   // This is just a placeholder that mimics your Discord example
-//   try {
-//     // Your implementation here
-//     // For example:
-//     const channel = await client
-//     const message = await channel.messages.fetch(publicId);
-//     return message.attachments.first()?.url;
-//     throw new Error('Not implemented');
-//   } catch (error) {
-//     console.error('Error fetching image by ID:', error);
-//     throw new Error('Error fetching image by ID');
-//   }
-// }
+const BOT_TOKEN = process.env.BOT_TOKEN!;
+const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
+
+interface Message {
+  attachments: { url: string }[];
+}
+
+const getImageById = async (messageId: string) => {
+  try {
+    const channelId = process.env.CHANNEL_ID;
+    if (!channelId) {
+      throw new Error("Channel ID not provided");
+    }
+
+    // Fetch the message from the channel using the message ID
+    const message = (await rest.get(
+      Routes.channelMessage(channelId, messageId)
+    )) as Message;
+
+    // Check if there is an attachment in the message
+    if (message.attachments && message.attachments.length > 0) {
+      const attachment = message.attachments[0];
+      return attachment.url;
+    }
+
+    throw new Error("No attachments found");
+  } catch (error) {
+    console.error(error);
+    throw new Error("Error fetching image by ID");
+  }
+};
 
 export async function getAllTags(): Promise<
   (typeof tags.$inferSelect)[] | any
@@ -367,10 +382,18 @@ export async function getUserCollections() {
     return [];
   }
 
-  const userCollections = await db.query.collections.findMany({
-    where: eq(collections.userId, user.id),
-    orderBy: collections.createdAt,
-  });
+  const userCollections = await db
+    .select({
+      id: collections.id,
+      title: collections.title,
+      userId: collections.userId,
+      itemCount: sql<number>`
+        (SELECT COUNT(*) FROM collection_images 
+         WHERE collection_images.collection_id = collections.id)
+      `,
+    })
+    .from(collections)
+    .where(eq(collections.userId, user.id));
 
   return userCollections;
 }

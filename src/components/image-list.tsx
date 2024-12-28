@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Heart, Share2, ZoomIn } from 'lucide-react';
 import { ImageWithRelations } from '@/lib/db/queries';
-import { handleLikePost } from '@/app/(login)/actions';
+import { handleLikePost } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 
 interface Props {

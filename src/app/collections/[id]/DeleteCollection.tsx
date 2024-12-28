@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react"; // Assuming this is available
 import { useToast } from "@/hooks/use-toast";
 import { deleteCollection } from "./actions";
 import { ActionState } from "@/lib/auth/middleware";
+import { Button } from "@/components/ui/button";
 
 const DeleteCollectionForm = ({ collectionId }: { collectionId: number }) => {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -29,13 +30,14 @@ const DeleteCollectionForm = ({ collectionId }: { collectionId: number }) => {
         defaultValue={collectionId}
         readOnly
       />
-      <button
+      <Button
         type="submit"
-        className="text-red-500 hover:underline"
+        variant={'outline'}
+        className="text-red-500"
         disabled={pending}
       >
         Delete Collection
-      </button>
+      </Button>
     </form>
   );
 };

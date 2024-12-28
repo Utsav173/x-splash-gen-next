@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import {
   getAllCommentsForImage,
   getSingleImage,
@@ -6,13 +6,73 @@ import {
 } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import ClickButton from "@/components/share-button";
 import DownloadButton from "@/components/download-button";
 import LikeButton from "@/components/like-button";
 import CommentSection from "./Comment";
 import { CollectionButton } from "./CollectionButton";
+import { Metadata } from "next";
+
+export const generateMetadata = async ({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> => {
+  const { id } = await params;
+  const imageData = await getSingleImage(Number(id));
+
+  if (!imageData || !imageData.title || !imageData.imageUrl) {
+    return {
+      title: "Image Not Found | Image Explore Collections",
+      description: "Image not found.",
+      keywords: ["image", "not found"],
+      openGraph: {
+        title: "Image Not Found",
+        description: "Image not found.",
+        images: [],
+      },
+      twitter: {
+        title: "Image Not Found",
+        description: "Image not found.",
+        images: [],
+      },
+    };
+  }
+
+  const { title, description, imageUrl, tags } = imageData;
+
+  const keywords = tags?.map((tag: { name: any }) => tag.name) || [];
+  keywords.push("image", "gallery", "collection");
+
+  return {
+    title: `${title} | Image Explore Collections`,
+    description: description || "An image from Image Explore Collections.",
+    keywords: keywords,
+    openGraph: {
+      title: title,
+      description: description || "An image from Image Explore Collections.",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      url: `https://x-image-gen.vercel.app/image/${id}`,
+      siteName: "Image Explore Collections",
+      type: "website",
+    },
+    twitter: {
+      title: title,
+      description: description || "An image from Image Explore Collections.",
+      images: [imageUrl],
+      card: "summary_large_image",
+    },
+  };
+};
 
 export default async function ImageDetailPage({
   params,
@@ -76,7 +136,7 @@ export default async function ImageDetailPage({
           {/* Info Section */}
           <div className="lg:col-span-1 space-y-6">
             {/* Image Info */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 shadow-sm h-full">
               <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
 
@@ -122,7 +182,9 @@ export default async function ImageDetailPage({
           </div>
 
           <div className="lg:col-span-full">
-            <CommentSection comments={comments} imageId={Number(id)} />
+            <Suspense fallback={<Loader2 className="animate-spin mx-auto" />}>
+              <CommentSection comments={comments} imageId={Number(id)} />
+            </Suspense>
           </div>
         </div>
       </div>

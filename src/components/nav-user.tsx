@@ -25,7 +25,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useUser } from '@/lib/auth';
-import { signOut } from '@/app/(login)/actions';
+import { signOut } from '@/app/actions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 

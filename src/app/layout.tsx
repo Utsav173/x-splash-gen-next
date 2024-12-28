@@ -31,7 +31,7 @@ export const metadata: Metadata = {
         alt: "Image Explore Collections",
       },
     ],
-    url: "https://yourwebsite.com",
+    url: "https://x-image-gen.vercel.app",
     siteName: "Image Explore Collections",
   },
   twitter: {

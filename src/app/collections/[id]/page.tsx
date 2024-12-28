@@ -1,8 +1,87 @@
 import React from "react";
 import { getCollectionWithImages } from "@/lib/db/queries";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ExternalLink, MoreVertical } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import DeleteCollectionForm from "./DeleteCollection";
 import RemoveFromCollectionForm from "./RemoveFormCollection";
+
+const ImageCard = ({
+  image,
+  collectionId,
+}: {
+  image: {
+    id: number;
+    title: string;
+    imageUrl: string;
+  };
+  collectionId: number;
+}) => {
+  return (
+    <Card className="group relative overflow-hidden rounded-lg bg-gray-100">
+      <Dialog>
+        <DialogTrigger asChild>
+          <div className="aspect-square cursor-pointer overflow-hidden">
+            <img
+              src={image.imageUrl}
+              alt={image.title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <p className="text-white text-sm font-medium truncate">
+                  {image.title}
+                </p>
+              </div>
+            </div>
+          </div>
+        </DialogTrigger>
+        <DialogContent className="max-w-4xl">
+          <div className="relative aspect-square">
+            <img
+              src={image.imageUrl}
+              alt={image.title}
+              className="h-full w-full object-cover rounded-lg"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="icon" className="h-8 w-8">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem asChild>
+              <Link href={`/image/${image.id}`}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open Original
+              </Link>
+            </DropdownMenuItem>
+            <RemoveFromCollectionForm
+              collectionId={collectionId}
+              imageId={image.id}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </Card>
+  );
+};
 
 export default async function CollectionPage({
   params,
@@ -49,42 +128,43 @@ export default async function CollectionPage({
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">{collection.title}</h1>
-          <DeleteCollectionForm collectionId={collection.id} />
+    <ScrollArea className="h-screen">
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <div className="flex items-center mb-2">
+            <Link href="/collections" className="mr-4 flex items-center">
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Link>
+            <Badge variant="outline" className="text-xs">
+              {collection.images.length} images
+            </Badge>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {collection.title}
+            </h1>
+            <DeleteCollectionForm collectionId={collection.id} />
+          </div>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Created on {new Date(collection.createdAt).toLocaleDateString()}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <Separator className="my-6" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {collection.images.map((image) => (
-            <div
+            <ImageCard
               key={image.id}
-              className="relative aspect-square overflow-hidden rounded-lg group"
-            >
-              <Link href={`/images/${image.id}`}>
-                <img
-                  src={image.imageUrl!}
-                  alt={image.title}
-                  loading="lazy"
-                  className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                />
-              </Link>
-              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
-                <div className="p-2 flex items-center">
-                  <p className="text-white text-sm font-medium mr-2 truncate">
-                    {image.title}
-                  </p>
-                  <RemoveFromCollectionForm
-                    collectionId={collection.id}
-                    imageId={image.id}
-                  />
-                </div>
-              </div>
-            </div>
+              image={image}
+              collectionId={collection.id}
+            />
           ))}
         </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 }
